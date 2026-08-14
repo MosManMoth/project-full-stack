@@ -1,0 +1,33 @@
+name: Group3Project
+
+services:
+  db:
+    image: postgres:16
+    container_name: group3project-db
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: reservation_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - group3project_pgdata:/var/lib/postgresql/data
+
+  api:
+    build: ./backend
+    container_name: group3project-api
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: app
+      DB_PASSWORD: app
+      DB_NAME: reservation_db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./frontend:/app/public
+    depends_on:
+      - db
+
+volumes:
+  group3project_pgdata:

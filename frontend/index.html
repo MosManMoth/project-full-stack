@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>University Reservation System</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap');
+    
+    body {
+      font-family: 'Kanit', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f1f5f9;
+      color: #1e293b;
+    }
+
+    /* Header - โทนสีม่วงดูพรีเมียม */
+    header {
+      background: linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%);
+      color: white;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 10px rgba(124, 58, 237, 0.2);
+    }
+    
+    header h2 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* ป้ายสถานะ */
+    .status-badge {
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 500;
+      background-color: #e2e8f0;
+      color: #475569;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+    .status-badge.online { background-color: #dcfce7; color: #166534; }
+    .status-badge.offline { background-color: #fee2e2; color: #b91c1c; }
+
+    /* ปุ่มเปลี่ยนภาษา */
+    .lang-toggle {
+      display: flex;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 30px;
+      padding: 4px;
+    }
+    .lang-toggle button {
+      background: transparent;
+      border: none;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-family: 'Kanit', sans-serif;
+      font-weight: 500;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    .lang-toggle button.active {
+      background: white;
+      color: #6d28d9;
+    }
+
+    /* แถบเมนูกรองข้อมูล */
+    .controls-container {
+      background: white;
+      padding: 15px 40px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      gap: 12px;
+    }
+
+    .filter-btn {
+      padding: 10px 24px;
+      border: 2px solid #e2e8f0;
+      background-color: white;
+      color: #64748b;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 15px;
+      font-family: 'Kanit', sans-serif;
+      transition: all 0.2s ease;
+    }
+    
+    .filter-btn:hover {
+      border-color: #7c3aed;
+      color: #7c3aed;
+    }
+
+    .filter-btn.active {
+      background-color: #7c3aed;
+      border-color: #7c3aed;
+      color: white;
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    }
+
+    /* พื้นที่แสดงการ์ด */
+    .container {
+      padding: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 25px;
+    }
+
+    /* ดีไซน์การ์ด */
+    .card {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      border: 1px solid #f1f5f9;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    /* แถบสีม่วงด้านบนการ์ด */
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, #6d28d9, #a855f7);
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h3 {
+      margin: 0 0 16px 0;
+      color: #0f172a;
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 15px;
+    }
+
+    .info-label {
+      color: #64748b;
+      width: 65px;
+      font-weight: 500;
+    }
+
+    .info-value {
+      color: #334155;
+      font-weight: 500;
+    }
+    
+    .status-text {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .status-text.available { background: #dcfce7; color: #15803d; }
+    .status-text.unavailable { background: #f1f5f9; color: #64748b; }
+    
+    .message {
+      grid-column: 1 / -1;
+      color: #64748b;
+      font-size: 18px;
+      text-align: center;
+      padding: 40px;
+      background: white;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h2 id="page-title">🏛️ ระบบจองห้องและอุปกรณ์</h2>
+    <div class="header-right">
+      <span id="status" class="status-badge">กำลังตรวจสอบ...</span>
+      <div class="lang-toggle">
+        <button id="lang-th" class="active" onclick="switchLang('th')">TH</button>
+        <button id="lang-en" onclick="switchLang('en')">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="controls-container">
+    <button id="btn-all" class="filter-btn active" onclick="fetchResources('', 'btn-all')">ทรัพยากรทั้งหมด</button>
+    <button id="btn-room" class="filter-btn" onclick="fetchResources('room', 'btn-room')">ห้อง</button>
+    <button id="btn-equipment" class="filter-btn" onclick="fetchResources('equipment', 'btn-equipment')">อุปกรณ์</button>
+  </div>
+
+  <div class="container">
+    <div id="resource-grid" class="grid">
+      <div class="message" id="msg-loading">กำลังโหลดข้อมูล...</div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:8000';
+    
+    // ตั้งค่าตัวแปรภาษา
+    let currentLang = 'th';
+    let currentTypeFilter = '';
+    let currentButtonId = 'btn-all';
+
+    // ดิกชันนารี (Dictionary) เก็บคำแปล
+    const i18n = {
+      th: {
+        title: "🏛️ ระบบจองห้องและอุปกรณ์",
+        btnAll: "ทรัพยากรทั้งหมด",
+        btnRoom: "ห้อง",
+        btnEquip: "อุปกรณ์",
+        type: "ประเภท",
+        status: "สถานะ",
+        room: "ห้อง",
+        equipment: "อุปกรณ์",
+        available: "ว่าง",
+        unavailable: "ไม่ว่าง",
+        online: "🟢 ระบบออนไลน์",
+        offline: "🔴 ออฟไลน์ / ไม่สามารถเชื่อมต่อ DB",
+        checking: "กำลังตรวจสอบ...",
+        loading: "กำลังโหลดข้อมูล...",
+        empty: "ไม่พบทรัพยากรที่เปิดใช้งาน",
+        error: "❌ ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบ Docker"
+      },
+      en: {
+        title: "🏛️ Reservation System",
+        btnAll: "All Resources",
+        btnRoom: "Rooms",
+        btnEquip: "Equipment",
+        type: "Type",
+        status: "Status",
+        room: "Room",
+        equipment: "Equipment",
+        available: "Available",
+        unavailable: "Unavailable",
+        online: "🟢 Available",
+        offline: "🔴 Unavailable / DB Error",
+        checking: "Checking status...",
+        loading: "Loading items...",
+        empty: "No active resources found.",
+        error: "❌ Error connecting to the database. Please check Docker."
+      }
+    };
+
+    // ฟังก์ชันเปลี่ยนภาษา
+    function switchLang(lang) {
+      currentLang = lang;
+      
+      // สลับคลาสปุ่มภาษา
+      document.getElementById('lang-th').classList.toggle('active', lang === 'th');
+      document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+
+      // อัปเดตข้อความบนหน้าเว็บ (Static Text)
+      document.getElementById('page-title').innerText = i18n[lang].title;
+      document.getElementById('btn-all').innerText = i18n[lang].btnAll;
+      document.getElementById('btn-room').innerText = i18n[lang].btnRoom;
+      document.getElementById('btn-equipment').innerText = i18n[lang].btnEquip;
+
+      // รีเฟรชข้อมูลเพื่อให้อัปเดตภาษาในการ์ด และ ป้ายสถานะ
+      checkHealth();
+      fetchResources(currentTypeFilter, currentButtonId);
+    }
+
+    // จัดการเปลี่ยนสีปุ่มที่ถูกกด (Active State)
+    function setActiveButton(buttonId) {
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      if(buttonId) document.getElementById(buttonId).classList.add('active');
+    }
+
+    // Check backend and database connectivity via GET /health
+    async function checkHealth() {
+      const statusBadge = document.getElementById('status');
+      try {
+        const response = await fetch(`${API_URL}/health`);
+        const data = await response.json();
+        if (data.ok) {
+          statusBadge.textContent = i18n[currentLang].online;
+          statusBadge.className = 'status-badge online';
+        }
+      } catch (error) {
+        statusBadge.textContent = i18n[currentLang].offline;
+        statusBadge.className = 'status-badge offline';
+      }
+    }
+
+    // Fetch active resources via GET /resources
+    async function fetchResources(type = '', buttonId = 'btn-all') {
+      currentTypeFilter = type;
+      currentButtonId = buttonId;
+      setActiveButton(buttonId);
+      
+      const grid = document.getElementById('resource-grid');
+      grid.innerHTML = `<div class="message">${i18n[currentLang].loading}</div>`;
+
+      try {
+        const url = type ? `${API_URL}/resources?type=${type}` : `${API_URL}/resources`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!data || data.length === 0) {
+          grid.innerHTML = `<div class="message">${i18n[currentLang].empty}</div>`;
+          return;
+        }
+
+        grid.innerHTML = data.map(item => {
+          const itemTypeOriginal = (item.type || '').toLowerCase();
+          
+          // กำหนด Icon และแปลประเภท
+          let icon = '📌';
+          let displayType = itemTypeOriginal;
+          if (itemTypeOriginal === 'room') {
+            icon = '🚪';
+            displayType = i18n[currentLang].room;
+          } else if (itemTypeOriginal === 'equipment') {
+            icon = '💻';
+            displayType = i18n[currentLang].equipment;
+          }
+
+          // จัดการสีสถานะและแปลสถานะ
+          const statusClass = item.is_active ? 'available' : 'unavailable';
+          const statusLabel = item.is_active ? i18n[currentLang].available : i18n[currentLang].unavailable;
+
+          return `
+            <div class="card">
+              <h3>${icon} ${item.name || 'Resource #' + item.id}</h3>
+              <div class="info-row">
+                <span class="info-label">${i18n[currentLang].type}:</span>
+                <span class="info-value" style="text-transform: capitalize;">${displayType}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">${i18n[currentLang].status}:</span>
+                <span class="status-text ${statusClass}">${statusLabel}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        grid.innerHTML = `<div class="message" style="color: #ef4444;">${i18n[currentLang].error}</div>`;
+      }
+    }
+
+    // Run automatically on page load
+    checkHealth();
+    fetchResources();
+  </script>
+
+</body>
+</html>
