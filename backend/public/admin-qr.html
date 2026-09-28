@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Code Generator & Item Manager</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap');
+    body { font-family: 'Kanit', sans-serif; padding: 20px; background: #f8fafc; color: #1e293b; }
+    .container { max-width: 1000px; margin: 0 auto; }
+    .form-box { background: white; padding: 24px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; margin-bottom: 4px; font-weight: 500; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: 'Kanit'; }
+    button { padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer; font-family: 'Kanit'; font-weight: 600; }
+    .btn-primary { background: #4f46e5; color: white; }
+    .btn-success { background: #059669; color: white; margin-left: 10px; }
+    .btn-danger { background: #ef4444; color: white; border-radius: 4px; padding: 4px 8px; font-size: 12px; margin-top: 8px; width: 100%; }
+    
+    .qr-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 15px;
+    }
+    
+    .qr-card {
+      background: white;
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      page-break-inside: avoid;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .qr-title { font-weight: 600; font-size: 14px; margin-bottom: 2px; color: #0f172a; }
+    .qr-sub { font-size: 11px; color: #64748b; margin-bottom: 8px; }
+
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white; padding: 0; }
+      .qr-card { border: 1px solid #000; }
+      .btn-danger { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="form-box no-print">
+      <h2>➕ Add New Item or Room</h2>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Unique ID (Identifier):</label>
+          <input type="text" id="item-id" placeholder="e.g. ROOM-305 or MIC-02">
+        </div>
+        <div class="form-group">
+          <label>Name / Label:</label>
+          <input type="text" id="item-name" placeholder="e.g. Conference Room B or Wireless Mic">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Type:</label>
+        <select id="item-type">
+          <option value="room">Room</option>
+          <option value="equipment">Equipment</option>
+        </select>
+      </div>
+      <button class="btn-primary" onclick="addItem()">Add & Generate QR</button>
+      <button class="btn-success" onclick="window.print()">🖨️ Print QR Sheet</button>
+    </div>
+
+    <h2>Generated QR Code Stickers (<span id="total-count">0</span>)</h2>
+    <div class="qr-grid" id="qr-container"></div>
+  </div>
+
+  <script>
+    const baseUrl = window.location.origin;
+
+    async function loadItems() {
+      const res = await fetch('/api/items');
+      const items = await res.json();
+      document.getElementById('total-count').innerText = items.length;
+      
+      const container = document.getElementById('qr-container');
+      container.innerHTML = '';
+
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'qr-card';
+        
+        const targetUrl = `${baseUrl}/borrow?item_id=${encodeURIComponent(item.item_id)}&item_name=${encodeURIComponent(item.item_name)}&type=${encodeURIComponent(item.item_type)}`;
+
+        card.innerHTML = `
+          <div class="qr-title">${item.item_name}</div>
+          <div class="qr-sub">${item.item_id} (${item.item_type})</div>
+          <div id="qr-${item.item_id}"></div>
+          <button class="btn-danger no-print" onclick="deleteItem('${item.item_id}')">Delete</button>
+        `;
+        
+        container.appendChild(card);
+
+        new QRCode(document.getElementById(`qr-${item.item_id}`), {
+          text: targetUrl,
+          width: 120,
+          height: 120,
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      });
+    }
+
+    async function addItem() {
+      const itemId = document.getElementById('item-id').value.trim();
+      const itemName = document.getElementById('item-name').value.trim();
+      const itemType = document.getElementById('item-type').value;
+
+      if (!itemId || !itemName) {
+        alert('Please fill in both ID and Name.');
+        return;
+      }
+
+      await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, itemName, itemType })
+      });
+
+      document.getElementById('item-id').value = '';
+      document.getElementById('item-name').value = '';
+      loadItems();
+    }
+
+    async function deleteItem(id) {
+      if (confirm(`Remove QR code for ${id}?`)) {
+        await fetch(`/api/items/${id}`, { method: 'DELETE' });
+        loadItems();
+      }
+    }
+
+    window.onload = loadItems;
+  </script>
+</body>
+</html>
