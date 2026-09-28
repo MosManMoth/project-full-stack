@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Borrow & Reservation Check-in</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+    
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Kanit', Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f1f5f9;
+      color: #1e293b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+    }
+
+    header h2 {
+      margin: 0 0 10px 0;
+      color: #4c1d95;
+      font-size: 24px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      background: #e0e7ff;
+      color: #4338ca;
+      border-radius: 20px;
+      font-weight: 500;
+      font-size: 14px;
+      word-break: break-word;
+    }
+
+    .form-group {
+      text-align: left;
+      margin-top: 18px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      font-size: 14px;
+      color: #475569;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: 'Kanit', sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      border-color: #7c3aed;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      margin-top: 22px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Kanit', sans-serif;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: #7c3aed;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    .timer-display {
+      font-size: 42px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 25px 0;
+      font-family: monospace;
+      letter-spacing: 2px;
+    }
+
+    .user-info-text {
+      margin-top: 15px;
+      color: #64748b;
+      font-size: 15px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <!-- View 1: Initial Registration Form on QR Scan -->
+    <div id="view-register">
+      <header>
+        <h2>📦 Borrow / Check-in</h2>
+        <span class="badge" id="item-display">Loading Item...</span>
+      </header>
+
+      <div class="form-group">
+        <label for="user-id">Student / Employee ID:</label>
+        <input type="text" id="user-id" placeholder="e.g. 660615026">
+      </div>
+
+      <div class="form-group">
+        <label for="user-name">Full Name:</label>
+        <input type="text" id="user-name" placeholder="e.g. John Doe">
+      </div>
+
+      <button class="btn btn-primary" onclick="startBorrowing()">OK (Start Borrowing)</button>
+    </div>
+
+    <!-- View 2: Active Borrowing Session & Timer -->
+    <div id="view-timer" class="hidden">
+      <header>
+        <h2>⏱️ Active Borrow Session</h2>
+        <span class="badge" id="active-item-display">Item</span>
+      </header>
+
+      <div class="user-info-text" id="user-display">Logged in user</div>
+      <div class="timer-display" id="timer">00:00:00</div>
+
+      <button class="btn btn-danger" onclick="stopBorrowing()">Stop Borrowing</button>
+    </div>
+  </div>
+
+  <script>
+    let timerInterval = null;
+
+    // 1. Extract query parameters from QR code URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const itemId = urlParams.get('item_id') || 'UNKNOWN_ID';
+    const itemName = urlParams.get('item_name') || 'General Item';
+    const itemType = urlParams.get('type') || 'item';
+
+    document.getElementById('item-display').innerText = `${itemType.toUpperCase()}: ${itemName} (${itemId})`;
+
+    // 2. Load saved identity & existing session on page load
+    window.onload = function() {
+      const savedUserId = localStorage.getItem('saved_user_id');
+      const savedUserName = localStorage.getItem('saved_user_name');
+      
+      if (savedUserId) document.getElementById('user-id').value = savedUserId;
+      if (savedUserName) document.getElementById('user-name').value = savedUserName;
+
+      const activeSession = JSON.parse(localStorage.getItem('active_borrow_session'));
+      if (activeSession) {
+        showTimerView(activeSession);
+      }
+    };
+
+    // 3. Handle starting a borrowing session
+    function startBorrowing() {
+      const userId = document.getElementById('user-id').value.trim();
+      const userName = document.getElementById('user-name').value.trim();
+
+      if (!userId || !userName) {
+        alert("Please enter both your Student/Employee ID and Full Name.");
+        return;
+      }
+
+      // Save user profile locally so they don't have to re-type on next scan
+      localStorage.setItem('saved_user_id', userId);
+      localStorage.setItem('saved_user_name', userName);
+
+      const session = {
+        userId,
+        userName,
+        itemId,
+        itemName,
+        itemType,
+        startTime: new Date().toISOString()
+      };
+
+      localStorage.setItem('active_borrow_session', JSON.stringify(session));
+      showTimerView(session);
+    }
+
+    // 4. Switch UI to timer view and start live counter loop
+    function showTimerView(session) {
+      document.getElementById('view-register').classList.add('hidden');
+      document.getElementById('view-timer').classList.remove('hidden');
+
+      document.getElementById('active-item-display').innerText = `${session.itemType.toUpperCase()}: ${session.itemName}`;
+      document.getElementById('user-display').innerText = `User: ${session.userName} (${session.userId})`;
+
+      if (timerInterval) clearInterval(timerInterval);
+      
+      const startMs = new Date(session.startTime).getTime();
+
+      const updateTimer = () => {
+        const nowMs = new Date().getTime();
+        const diffSec = Math.floor((nowMs - startMs) / 1000);
+
+        const hrs = String(Math.floor(diffSec / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((diffSec % 3600) / 60)).padStart(2, '0');
+        const secs = String(diffSec % 60).padStart(2, '0');
+
+        document.getElementById('timer').innerText = `${hrs}:${mins}:${secs}`;
+      };
+
+      updateTimer();
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+
+    // 5. Handle stopping the borrow session and logging to PostgreSQL
+    async function stopBorrowing() {
+      const session = JSON.parse(localStorage.getItem('active_borrow_session'));
+      if (!session) return;
+
+      clearInterval(timerInterval);
+
+      const endTime = new Date().toISOString();
+      const durationSeconds = Math.floor((new Date(endTime).getTime() - new Date(session.startTime).getTime()) / 1000);
+
+      const payload = {
+        ...session,
+        endTime,
+        durationSeconds
+      };
+
+      try {
+        const res = await fetch('/api/borrow/stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.ok) {
+          localStorage.removeItem('active_borrow_session');
+          
+          const totalMins = Math.floor(durationSeconds / 60);
+          const totalSecs = durationSeconds % 60;
+          alert(`Borrowing session ended successfully!\nTotal Duration: ${totalMins} min ${totalSecs} sec.`);
+          
+          // Redirect to home or reset page
+          window.location.href = '/';
+        } else {
+          alert('Failed to save borrowing session record.');
+        }
+      } catch (err) {
+        alert('Network error while saving session. Please check your connection.');
+      }
+    }
+  </script>
+</body>
+</html>
