@@ -167,14 +167,37 @@
 
     // 1. Extract query parameters from QR code URL
     const urlParams = new URLSearchParams(window.location.search);
-    const itemId = urlParams.get('item_id') || 'UNKNOWN_ID';
-    const itemName = urlParams.get('item_name') || 'General Item';
-    const itemType = urlParams.get('type') || 'item';
+    const itemId = urlParams.get('itemId') || urlParams.get('item_id') || 'UNKNOWN_ID';
+    let itemName = urlParams.get('item_name');
+    let itemType = urlParams.get('type');
 
-    document.getElementById('item-display').innerText = `${itemType.toUpperCase()}: ${itemName} (${itemId})`;
+   document.getElementById('item-display').innerText = `${finalItemType.toUpperCase()}: ${finalItemName} (${itemId})`;
 
     // 2. Load saved identity & existing session on page load
-    window.onload = function() {
+    window.onload = async function() {
+      // Fetch missing item details from backend if not provided in URL params
+      if (!itemName || !itemType) { 
+        try { 
+          const res = await fetch('/api/items');
+          if (res.ok) { 
+            const items = await res.json();
+            const matchedItem = items.find(i => i.item_id === itemId);
+            if (matchedItem) { 
+              itemName = matchedItem.item_name;
+              itemType = matchedItem.item_type;
+            } 
+          } 
+        } catch (err) { 
+          console.error("Failed to fetch item details:", err); 
+        } 
+      } 
+
+      // Fallback values if item fetch failed or item ID is unknown 
+      const finalItemName = itemName || 'General Item'; 
+      const finalItemType = itemType || 'item'; 
+
+      document.getElementById('item-display').innerText = `${finalItemType.toUpperCase()}: ${finalItemName} (${itemId})`; // ToT
+
       const savedUserId = localStorage.getItem('saved_user_id');
       const savedUserName = localStorage.getItem('saved_user_name');
       
@@ -205,8 +228,8 @@
         userId,
         userName,
         itemId,
-        itemName,
-        itemType,
+        itemName: itemName || 'General Item',
+        itemType: itemType || 'item',
         startTime: new Date().toISOString()
       };
 

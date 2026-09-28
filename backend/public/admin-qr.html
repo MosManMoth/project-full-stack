@@ -93,7 +93,7 @@
           const card = document.createElement('div');
           card.className = 'qr-card';
           
-          const targetUrl = `${baseUrl}/borrow?item_id=${encodeURIComponent(item.item_id)}&item_name=${encodeURIComponent(item.item_name)}&type=${encodeURIComponent(item.item_type)}`;
+          const targetUrl = `${baseUrl}/borrow?itemId=${encodeURIComponent(item.item_id)}`;
 
           // Title & Subtitle
           const title = document.createElement('div');

@@ -15,7 +15,7 @@ services:
 
   api:
     build:
-      context: .
+      context: ./backend
       dockerfile: backend/Dockerfile
     container_name: group3project-api
     environment:
