@@ -68,7 +68,7 @@
           <option value="equipment">Equipment</option>
         </select>
       </div>
-      <button class="btn-primary" onclick="addItem()">Add & Generate QR</button>
+      <button class="btn-primary" id="btn-add" onclick="addItem()">Add & Generate QR</button>
       <button class="btn-success" onclick="window.print()">🖨️ Print QR Sheet</button>
     </div>
 
@@ -80,35 +80,56 @@
     const baseUrl = window.location.origin;
 
     async function loadItems() {
-      const res = await fetch('/api/items');
-      const items = await res.json();
-      document.getElementById('total-count').innerText = items.length;
-      
-      const container = document.getElementById('qr-container');
-      container.innerHTML = '';
-
-      items.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'qr-card';
+      try {
+        const res = await fetch('/api/items');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const items = await res.json();
         
-        const targetUrl = `${baseUrl}/borrow?item_id=${encodeURIComponent(item.item_id)}&item_name=${encodeURIComponent(item.item_name)}&type=${encodeURIComponent(item.item_type)}`;
+        document.getElementById('total-count').innerText = items.length;
+        const container = document.getElementById('qr-container');
+        container.innerHTML = '';
 
-        card.innerHTML = `
-          <div class="qr-title">${item.item_name}</div>
-          <div class="qr-sub">${item.item_id} (${item.item_type})</div>
-          <div id="qr-${item.item_id}"></div>
-          <button class="btn-danger no-print" onclick="deleteItem('${item.item_id}')">Delete</button>
-        `;
-        
-        container.appendChild(card);
+        items.forEach(item => {
+          const card = document.createElement('div');
+          card.className = 'qr-card';
+          
+          const targetUrl = `${baseUrl}/borrow?item_id=${encodeURIComponent(item.item_id)}&item_name=${encodeURIComponent(item.item_name)}&type=${encodeURIComponent(item.item_type)}`;
 
-        new QRCode(document.getElementById(`qr-${item.item_id}`), {
-          text: targetUrl,
-          width: 120,
-          height: 120,
-          correctLevel: QRCode.CorrectLevel.M
+          // Title & Subtitle
+          const title = document.createElement('div');
+          title.className = 'qr-title';
+          title.textContent = item.item_name;
+          
+          const sub = document.createElement('div');
+          sub.className = 'qr-sub';
+          sub.textContent = `${item.item_id} (${item.item_type})`;
+
+          // Container directly passed to QRCode
+          const qrDiv = document.createElement('div');
+
+          // Delete Button
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn-danger no-print';
+          delBtn.textContent = 'Delete';
+          delBtn.onclick = () => deleteItem(item.item_id);
+
+          card.appendChild(title);
+          card.appendChild(sub);
+          card.appendChild(qrDiv);
+          card.appendChild(delBtn);
+          container.appendChild(card);
+
+          // Generate QR code targeting the div element directly
+          new QRCode(qrDiv, {
+            text: targetUrl,
+            width: 120,
+            height: 120,
+            correctLevel: QRCode.CorrectLevel.M
+          });
         });
-      });
+      } catch (err) {
+        console.error('Error loading items:', err);
+      }
     }
 
     async function addItem() {
@@ -121,21 +142,40 @@
         return;
       }
 
-      await fetch('/api/items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId, itemName, itemType })
-      });
+      const btn = document.getElementById('btn-add');
+      btn.disabled = true;
 
-      document.getElementById('item-id').value = '';
-      document.getElementById('item-name').value = '';
-      loadItems();
+      try {
+        const res = await fetch('/api/items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId, itemName, itemType })
+        });
+
+        if (!res.ok) {
+          alert(`Server Error (${res.status}): Make sure /api/items POST route is active in index.js.`);
+          return;
+        }
+
+        document.getElementById('item-id').value = '';
+        document.getElementById('item-name').value = '';
+        await loadItems();
+      } catch (err) {
+        alert('Network Error: Could not reach backend server.');
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     async function deleteItem(id) {
       if (confirm(`Remove QR code for ${id}?`)) {
-        await fetch(`/api/items/${id}`, { method: 'DELETE' });
-        loadItems();
+        try {
+          await fetch(`/api/items/${id}`, { method: 'DELETE' });
+          await loadItems();
+        } catch (err) {
+          console.error(err);
+        }
       }
     }
 
