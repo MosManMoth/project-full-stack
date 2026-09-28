@@ -1,4 +1,4 @@
-name: Group3Project
+name: group3project
 
 services:
   db:
@@ -14,7 +14,9 @@ services:
       - group3project_pgdata:/var/lib/postgresql/data
 
   api:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: group3project-api
     environment:
       DB_HOST: db
@@ -25,7 +27,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./frontend:/app/public
+      - ./backend/public/qrcodes:/app/public/qrcodes
     depends_on:
       - db
 

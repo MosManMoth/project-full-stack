@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 const path = require("path");
+const fs = require("fs");
+const QRCode = require("qrcode");
 
 const app = express();
 app.use(cors());
@@ -111,6 +113,7 @@ app.get("/api/items", async (req, res) => {
 app.post("/api/items", async (req, res) => {
   const { itemId, itemName, itemType } = req.body;
   try {
+    // Save the data in the database
     await pool.query(
       `INSERT INTO items (item_id, item_name, item_type)
        VALUES ($1, $2, $3)
@@ -118,7 +121,23 @@ app.post("/api/items", async (req, res) => {
        SET item_name = EXCLUDED.item_name, item_type = EXCLUDED.item_type`,
       [itemId, itemName, itemType]
     );
-    res.json({ ok: true });
+
+    // Make sure QR code directory exists
+    const qrDir = path.join(__dirname, "public", "qrcodes");
+    if (!fs.existsSync(qrDir)) {
+      fs.mkdirSync(qrDir, { recursive: true });
+    }
+
+    // Generate QR code
+    const qrContent = `http://localhost:8000/borrow?itemId=${encodeURIComponent(itemId)}`;
+    const qrFilePath = path.join(qrDir, `${itemId}.png`);
+    await QRCode.toFile(qrFilePath, qrContent);
+
+    // Return with URL of QR code
+    res.json({
+      ok: true,
+      qrUrl: `/qrcodes/${itemId}.png`
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -127,7 +146,15 @@ app.post("/api/items", async (req, res) => {
 // Delete QR item
 app.delete("/api/items/:id", async (req, res) => {
   try {
-    await pool.query("DELETE FROM items WHERE item_id = $1", [req.params.id]);
+    const itemId = req.params.id;
+    await pool.query("DELETE FROM items WHERE item_id = $1", [itemId]);
+
+    // Delete image file if exists
+    const qrFilePath = path.join(__dirname, "public", "qrcodes", `${itemId}.png`);
+    if (fs.existsSync(qrFilePath)) {
+      fs.unlinkSync(qrFilePath);
+    }
+
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -151,6 +178,10 @@ app.post("/api/borrow/stop", async (req, res) => {
 
 // Serve borrow check-in interface when QR code is scanned
 app.get("/borrow", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
