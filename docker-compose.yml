@@ -12,10 +12,15 @@ services:
       - "5432:5432"
     volumes:
       - group3project_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d reservation_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   api:
     build:
-      context: ./backend
+      context: .
       dockerfile: backend/Dockerfile
     container_name: group3project-api
     environment:
@@ -29,7 +34,8 @@ services:
     volumes:
       - ./backend/public/qrcodes:/app/public/qrcodes
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
   group3project_pgdata:
