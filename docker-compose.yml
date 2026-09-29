@@ -18,11 +18,11 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
+  app:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: group3project-api
+    container_name: group3project
     environment:
       DB_HOST: db
       DB_PORT: 5432
